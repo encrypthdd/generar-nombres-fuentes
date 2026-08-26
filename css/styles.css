@@ -1,0 +1,329 @@
+/* ============================================================
+   Atelier · Generador de nombres por lotes
+   Hoja de estilo complementaria a Tailwind
+   ============================================================ */
+
+/* ---------- 1. Fuente local Joseph Sophia ----------
+   Copia el archivo de la fuente dentro de /fonts con alguno
+   de estos nombres. El primero que exista será el que se use. */
+@font-face {
+  font-family: 'JosephSophia';
+  src: url('../fonts/josephsophia.woff2') format('woff2'),
+       url('../fonts/josephsophia.woff')  format('woff'),
+       url('../fonts/josephsophia.otf')   format('opentype'),
+       url('../fonts/josephsophia.ttf')   format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* Las terminaciones con letra y corazón de Joseph Sophia viven en la zona
+   privada (U+E000…) del propio archivo: no hace falta una fuente aparte.
+   Se localizan con el botón «Glifos» → filtro «Adornos». */
+
+/* ---------- 2. Paleta / temas ---------- */
+:root {
+  --c-bg:      247 245 242;
+  --c-panel:   255 255 255;
+  --c-panel2:  245 243 239;
+  --c-line:    226 221 213;
+  --c-txt:     26 26 28;
+  --c-muted:   122 118 112;
+  --c-gold:    166 124 31;
+  --c-gold2:   198 160 74;
+  --paper:     #ffffff;
+  --paper-edge: rgb(0 0 0 / .10);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --c-bg:      11 14 19;
+  --c-panel:   18 23 31;
+  --c-panel2:  24 30 40;
+  --c-line:    38 47 61;
+  --c-txt:     233 236 241;
+  --c-muted:   139 149 165;
+  --c-gold:    230 192 120;
+  --c-gold2:   201 162 89;
+  --paper:     #ffffff;
+  --paper-edge: rgb(0 0 0 / .55);
+  color-scheme: dark;
+}
+
+* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { overflow: hidden; }
+
+/* ---------- 3. Controles ---------- */
+.lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: rgb(var(--c-muted));
+  margin-bottom: 4px;
+}
+.inp {
+  width: 100%;
+  background: rgb(var(--c-panel2));
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: rgb(var(--c-txt));
+  transition: border-color .15s, box-shadow .15s;
+}
+.inp:focus {
+  outline: none;
+  border-color: rgb(var(--c-gold));
+  box-shadow: 0 0 0 3px rgb(var(--c-gold) / .18);
+}
+textarea.inp { resize: vertical; min-height: 90px; }
+select.inp { cursor: pointer; }
+
+.cbx {
+  width: 16px; height: 16px; border-radius: 4px;
+  border: 1px solid rgb(var(--c-line));
+  background: rgb(var(--c-panel2));
+  accent-color: rgb(var(--c-gold));
+  cursor: pointer;
+}
+.clr {
+  width: 44px; height: 28px; padding: 2px;
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 7px;
+  background: rgb(var(--c-panel2));
+  cursor: pointer;
+}
+.rng {
+  width: 100%; height: 4px; border-radius: 99px;
+  background: rgb(var(--c-line));
+  accent-color: rgb(var(--c-gold));
+  cursor: pointer;
+}
+
+.hint { font-size: 11px; line-height: 1.5; color: rgb(var(--c-muted)); margin-top: 6px; }
+.hint code, .notice code {
+  background: rgb(var(--c-panel2));
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 10.5px;
+}
+
+/* ---------- 4. Botones ---------- */
+.btn-ghost, .btn-primary, .btn-gold, .btn-icon {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 9px; font-size: 12.5px; font-weight: 500;
+  padding: 7px 11px; cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .15s, border-color .15s, transform .06s;
+  white-space: nowrap;
+}
+.btn-ghost { background: rgb(var(--c-panel2)); border-color: rgb(var(--c-line)); color: rgb(var(--c-txt)); }
+.btn-ghost:hover { border-color: rgb(var(--c-gold) / .55); }
+.btn-primary { background: rgb(var(--c-txt)); color: rgb(var(--c-panel)); }
+.btn-primary:hover { opacity: .88; }
+.btn-gold {
+  background: linear-gradient(135deg, rgb(var(--c-gold)), rgb(var(--c-gold2)));
+  color: #171008; font-weight: 600;
+}
+.btn-gold:hover { filter: brightness(1.07); }
+.btn-icon {
+  background: transparent; border-color: rgb(var(--c-line));
+  padding: 6px 9px; color: rgb(var(--c-muted));
+}
+.btn-icon:hover { color: rgb(var(--c-txt)); border-color: rgb(var(--c-gold) / .55); }
+.btn-ghost:active, .btn-primary:active, .btn-gold:active, .btn-icon:active { transform: translateY(1px); }
+
+.ico { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+.chip {
+  font-size: 11.5px; padding: 4px 10px; border-radius: 99px;
+  background: rgb(var(--c-panel2)); border: 1px solid rgb(var(--c-line));
+  color: rgb(var(--c-muted)); cursor: pointer; transition: all .15s;
+}
+.chip:hover { color: rgb(var(--c-txt)); border-color: rgb(var(--c-gold) / .6); }
+.chip.on {
+  background: rgb(var(--c-gold) / .16);
+  border-color: rgb(var(--c-gold));
+  color: rgb(var(--c-gold));
+  font-weight: 600;
+}
+
+/* ---------- 5. Acordeón ---------- */
+.acc { border-bottom: 1px solid rgb(var(--c-line)); }
+.acc > summary {
+  display: flex; align-items: center; gap: 9px;
+  padding: 13px 16px; cursor: pointer; user-select: none;
+  font-size: 13px; font-weight: 600; letter-spacing: .01em;
+  list-style: none;
+}
+.acc > summary::-webkit-details-marker { display: none; }
+.acc > summary::after {
+  content: ''; margin-left: auto;
+  width: 7px; height: 7px;
+  border-right: 1.6px solid rgb(var(--c-muted));
+  border-bottom: 1.6px solid rgb(var(--c-muted));
+  transform: rotate(45deg); transition: transform .2s;
+}
+.acc[open] > summary::after { transform: rotate(-135deg); }
+.acc > summary:hover { background: rgb(var(--c-panel2)); }
+.acc-n {
+  display: grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 6px;
+  background: rgb(var(--c-gold) / .15); color: rgb(var(--c-gold));
+  font-size: 10.5px; font-weight: 700;
+}
+.acc-body { padding: 0 16px 18px; }
+
+/* ---------- 6. Lista de fuentes ---------- */
+.font-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 9px 11px; cursor: pointer;
+  background: transparent; text-align: left;
+  transition: background .12s;
+}
+.font-item:hover { background: rgb(var(--c-panel2)); }
+.font-item.on { background: rgb(var(--c-gold) / .13); }
+.font-item .fi-prev {
+  font-size: 26px; line-height: 1.15; flex: 1;
+  color: rgb(var(--c-txt));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.font-item .fi-name {
+  font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase;
+  color: rgb(var(--c-muted)); max-width: 96px; text-align: right; line-height: 1.3;
+}
+.font-item.on .fi-name { color: rgb(var(--c-gold)); }
+.fi-group {
+  padding: 7px 11px 4px; font-size: 9.5px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: rgb(var(--c-muted)); background: rgb(var(--c-panel2));
+  position: sticky; top: 0; z-index: 1;
+}
+.fi-badge {
+  font-size: 9px; padding: 1px 5px; border-radius: 4px;
+  background: rgb(var(--c-gold) / .2); color: rgb(var(--c-gold)); font-weight: 700;
+}
+
+/* ---------- 7. Zona de arrastre ---------- */
+.drop {
+  border: 1.5px dashed rgb(var(--c-line));
+  border-radius: 10px; padding: 14px 10px; text-align: center;
+  color: rgb(var(--c-muted)); cursor: pointer; transition: all .15s;
+}
+.drop:hover, .drop.hot {
+  border-color: rgb(var(--c-gold)); color: rgb(var(--c-txt));
+  background: rgb(var(--c-gold) / .07);
+}
+
+/* ---------- 8. Paleta de símbolos ---------- */
+.palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.palette button {
+  aspect-ratio: 1; display: grid; place-items: center;
+  font-size: 16px; border-radius: 7px;
+  border: 1px solid rgb(var(--c-line));
+  background: rgb(var(--c-panel2)); cursor: pointer;
+  transition: all .12s;
+}
+.palette button:hover {
+  border-color: rgb(var(--c-gold)); background: rgb(var(--c-gold) / .14);
+  transform: scale(1.08);
+}
+
+/* ---------- 9. Avisos ---------- */
+.notice {
+  font-size: 11.5px; line-height: 1.55;
+  border: 1px solid rgb(217 119 6 / .4);
+  background: rgb(217 119 6 / .1);
+  color: rgb(var(--c-txt));
+  border-radius: 9px; padding: 9px 11px; margin-bottom: 10px;
+}
+.notice strong { display: block; margin-bottom: 2px; }
+
+/* ---------- 10. Glifos ---------- */
+.glyph-cell {
+  border: 1px solid rgb(var(--c-line)); border-radius: 9px;
+  background: rgb(var(--c-panel2)); cursor: pointer;
+  padding: 6px 4px; text-align: center; transition: all .12s;
+  overflow: hidden;
+}
+.glyph-cell:hover { border-color: rgb(var(--c-gold)); background: rgb(var(--c-gold) / .12); }
+.glyph-cell svg { display: block; margin: 0 auto; }
+.glyph-cell .g-lbl {
+  font-size: 8.5px; color: rgb(var(--c-muted)); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------- 11. Páginas / hojas ---------- */
+#pages { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+.page {
+  position: relative;
+  background: var(--paper);
+  box-shadow: 0 2px 6px var(--paper-edge), 0 22px 50px -24px var(--paper-edge);
+  overflow: hidden;
+  flex: none;
+}
+/* Cada hoja es un único <svg> a escala 1 mm = 1 unidad; las guías, el espejo y
+   los contornos se dibujan dentro de él (ver buildPageSVG en js/app.js). */
+.page > svg { display: block; }
+
+.page-label {
+  position: absolute; bottom: 3mm; right: 4mm;
+  font-family: Inter, sans-serif; font-size: 2.6mm; color: #9aa0a8;
+}
+
+/* Lienzo oculto de medición. Debe estar renderizado (no display:none) y a la
+   misma escala física que las hojas (1 unidad de usuario = 1 mm), porque el
+   navegador ajusta las métricas de la tipografía al tamaño real de trazado. */
+#measure {
+  position: absolute; left: -99999px; top: 0;
+  width: 300mm; height: 300mm; overflow: visible;
+  pointer-events: none;
+}
+
+/* ---------- 12. Varios ---------- */
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(var(--c-line)) transparent; }
+.scroll-thin::-webkit-scrollbar { width: 9px; height: 9px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: rgb(var(--c-line)); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+.spinner {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid rgb(var(--c-line));
+  border-top-color: rgb(var(--c-gold));
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#toast > div {
+  background: rgb(var(--c-txt)); color: rgb(var(--c-panel));
+  padding: 10px 18px; border-radius: 99px; font-size: 12.5px; font-weight: 500;
+  box-shadow: 0 10px 30px -8px rgb(0 0 0 / .5);
+  animation: toastIn .22s ease-out;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(10px); } }
+
+.preset-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; padding: 5px 9px; border-radius: 7px;
+  background: rgb(var(--c-panel2)); border: 1px solid rgb(var(--c-line));
+}
+.preset-row button { color: rgb(var(--c-muted)); cursor: pointer; }
+.preset-row button:hover { color: rgb(var(--c-gold)); }
+
+/* ---------- 13. Impresión ---------- */
+@media print {
+  html, body { background: #fff !important; overflow: visible !important; height: auto !important; }
+  .no-print, #sidebar, #topbar, #canvasbar, #glyphModal, #toast, #measure { display: none !important; }
+  #workspace { display: block !important; height: auto !important; }
+  #viewport { overflow: visible !important; padding: 0 !important; display: block !important; }
+  #pages {
+    display: block !important; gap: 0 !important;
+    transform: none !important; margin: 0 !important;
+  }
+  .page {
+    box-shadow: none !important; margin: 0 !important;
+    break-after: page; page-break-after: always;
+  }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+}

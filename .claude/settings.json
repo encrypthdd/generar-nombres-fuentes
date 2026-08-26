@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node \"C:\\\\Users\\\\cflores\\\\.claude\\\\skills\\\\browser-automation\\\\browser.mjs\" \"http://localhost/AppWeb/Ejemplos/dev.cflores/generar-nombres-fuentes/\" --eval \"JSON.stringify\\({items:document.querySelector\\('#statItems'\\)?.textContent, pages:document.querySelector\\('#statPages'\\)?.textContent, pageEls:document.querySelectorAll\\('.page'\\).length, itemEls:document.querySelectorAll\\('.item'\\).length, title:document.title}\\)\")",
+      "PowerShell(node \"C:\\\\Users\\\\cflores\\\\.claude\\\\skills\\\\browser-automation\\\\browser.mjs\" \"http://localhost/AppWeb/Ejemplos/dev.cflores/generar-nombres-fuentes/index.html\" --script \"C:\\\\Users\\\\cflores\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--xampp-htdocs-AppWeb-Ejemplos-dev-cflores-generar-nombres-fuentes\\\\17a884c4-c594-4ec6-9644-ed1332b166fc\\\\scratchpad\\\\qa.mjs\")",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost/\" -UseBasicParsing -TimeoutSec 10; \"STATUS $\\($r.StatusCode\\)\"; $r.Headers.GetEnumerator\\(\\) | ForEach-Object { \"$\\($_.Key\\): $\\($_.Value\\)\" } } catch { \"ERR: $\\($_.Exception.Message\\)\" }; \"--- vhosts ---\"; try { Select-String -Path \"C:\\\\xampp\\\\apache\\\\conf\\\\extra\\\\httpd-vhosts.conf\" -Pattern 'DocumentRoot|ServerName|VirtualHost' -ErrorAction Stop | ForEach-Object { $_.Line.Trim\\(\\) } } catch { \"sin vhosts\" })"
+    ]
+  }
+}

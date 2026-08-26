@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier · Generador de Nombres por Lotes</title>
+<meta name="description" content="Genera nombres y palabras por lotes en fuentes caligráficas y expórtalos a PDF/SVG para vinil autoadhesivo y sublimación.">
+
+<!-- ============ Tipografías ============ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&family=Alex+Brush&family=Allura&family=Parisienne&family=Sacramento&family=Dancing+Script:wght@400..700&family=Pinyon+Script&family=Tangerine:wght@400;700&family=Italianno&family=Mrs+Saint+Delafield&family=Petit+Formal+Script&family=Rouge+Script&family=Yellowtail&family=Satisfy&family=Cookie&family=Grand+Hotel&family=Norican&family=Berkshire+Swash&family=Playball&family=Lobster+Two:ital,wght@0,400;0,700;1,400;1,700&family=Ephesis&family=Birthstone&family=Style+Script&family=Meow+Script&family=Mea+Culpa&family=Bilbo+Swash+Caps&family=Herr+Von+Muellerhoff&family=Monsieur+La+Doulaise&family=Qwigley&family=Kaushan+Script&family=Courgette&family=Marck+Script&family=Caveat:wght@400..700&family=Homemade+Apple&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Cinzel:wght@400..900&family=Bebas+Neue&family=Oswald:wght@200..700&family=Montserrat:wght@100..900&family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+
+<!-- ============ Tailwind ============ -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: ['class', '[data-theme="dark"]'],
+  theme: {
+    extend: {
+      colors: {
+        bg:     'rgb(var(--c-bg) / <alpha-value>)',
+        panel:  'rgb(var(--c-panel) / <alpha-value>)',
+        panel2: 'rgb(var(--c-panel2) / <alpha-value>)',
+        line:   'rgb(var(--c-line) / <alpha-value>)',
+        txt:    'rgb(var(--c-txt) / <alpha-value>)',
+        muted:  'rgb(var(--c-muted) / <alpha-value>)',
+        gold:   'rgb(var(--c-gold) / <alpha-value>)',
+        gold2:  'rgb(var(--c-gold2) / <alpha-value>)',
+      },
+      fontFamily: {
+        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        ui: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        soft: '0 1px 2px rgb(0 0 0 / .12), 0 8px 24px -12px rgb(0 0 0 / .35)',
+      }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="css/styles.css">
+<style id="print-style">@page{size:210mm 297mm;margin:0}</style>
+</head>
+
+<body class="font-ui bg-bg text-txt antialiased">
+
+<!-- ═══════════════ BARRA SUPERIOR ═══════════════ -->
+<header id="topbar" class="no-print sticky top-0 z-40 border-b border-line bg-panel/90 backdrop-blur">
+  <div class="flex items-center gap-3 px-4 h-16">
+
+    <div class="flex items-center gap-3 shrink-0">
+      <div class="grid place-items-center w-10 h-10 rounded-xl bg-gradient-to-br from-gold to-gold2 text-black font-display text-2xl font-bold leading-none shadow-soft">A</div>
+      <div class="leading-tight hidden sm:block">
+        <h1 class="font-display text-xl font-semibold tracking-wide">Atelier</h1>
+        <p class="text-[11px] text-muted -mt-0.5">Nombres por lotes · Vinil &amp; Sublimación</p>
+      </div>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <div class="flex items-center gap-1.5">
+      <button id="btnGlyphs"  class="btn-ghost" title="Explorador de glifos (requiere archivo .ttf/.otf)">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 5v14M7 19h4"/><path d="M14 19h6M17 12v7"/></svg>
+        <span class="hidden lg:inline">Glifos</span>
+      </button>
+      <button id="btnSave"    class="btn-ghost" title="Guardar proyecto (.json)">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        <span class="hidden lg:inline">Guardar</span>
+      </button>
+      <button id="btnOpen"    class="btn-ghost" title="Abrir proyecto (.json)">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+        <span class="hidden lg:inline">Abrir</span>
+      </button>
+      <input type="file" id="fileProject" accept="application/json,.json" class="hidden">
+
+      <span class="w-px h-7 bg-line mx-1"></span>
+
+      <button id="btnSVG"   class="btn-ghost" title="Exportar SVG (una por página) para plotter de corte">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v3h16v-3"/></svg>
+        <span class="hidden lg:inline">SVG</span>
+      </button>
+      <button id="btnPDF"   class="btn-primary" title="Descargar PDF">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v3h16v-3"/></svg>
+        PDF
+      </button>
+      <button id="btnPrint" class="btn-gold" title="Imprimir / Guardar como PDF (máxima calidad vectorial)">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><path d="M6 14h12v7H6z"/></svg>
+        <span class="hidden md:inline">Imprimir</span>
+      </button>
+
+      <span class="w-px h-7 bg-line mx-1"></span>
+
+      <button id="btnTheme" class="btn-icon" title="Cambiar tema">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════ CUERPO ═══════════════ -->
+<div id="workspace" class="flex h-[calc(100vh-4rem)]">
+
+  <!-- ──────── PANEL DE CONTROLES ──────── -->
+  <aside id="sidebar" class="no-print w-[360px] shrink-0 border-r border-line bg-panel overflow-y-auto scroll-thin">
+
+    <!-- 1. TEXTO -->
+    <details class="acc" open>
+      <summary><span class="acc-n">1</span> Texto y lote</summary>
+      <div class="acc-body">
+        <label class="lbl">Un nombre o palabra por línea</label>
+        <textarea id="txtInput" rows="8" class="inp font-mono text-[13px] leading-6" spellcheck="false"
+placeholder="María&#10;Sofía&#10;Valentina&#10;Familia Pérez&#10;Bienvenidos"></textarea>
+
+        <p class="hint">
+          Opciones por línea: <code>Nombre | repeticiones | tamaño</code><br>
+          Ej.: <code>María | 6</code> · <code>Sofía | 2 | 35</code>
+        </p>
+
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div>
+            <label class="lbl">Repetir c/u</label>
+            <input id="numRepeat" type="number" min="1" max="500" value="1" class="inp">
+          </div>
+          <div>
+            <label class="lbl">Mayús/minús</label>
+            <select id="selCase" class="inp">
+              <option value="none">Sin cambios</option>
+              <option value="upper">MAYÚSCULAS</option>
+              <option value="lower">minúsculas</option>
+              <option value="title">Capitalizar</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <button class="chip" id="btnSort">A→Z</button>
+          <button class="chip" id="btnUnique">Sin duplicados</button>
+          <button class="chip" id="btnTrimEmpty">Limpiar vacías</button>
+          <button class="chip" id="btnClear">Vaciar</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- 2. FUENTE -->
+    <details class="acc" open>
+      <summary><span class="acc-n">2</span> Fuente</summary>
+      <div class="acc-body">
+        <div id="localFontWarn" class="notice hidden">
+          <strong>Joseph Sophia no está instalada.</strong>
+          Copia <code>josephsophia.ttf</code> (u <code>.otf</code>/<code>.woff2</code>) en la carpeta
+          <code>/fonts</code> del proyecto, o cárgala abajo.
+        </div>
+
+        <input id="fontSearch" type="search" class="inp" placeholder="Buscar fuente…">
+
+        <div id="fontList" class="mt-2 max-h-[290px] overflow-y-auto scroll-thin rounded-lg border border-line divide-y divide-line/60"></div>
+
+        <div id="fontDrop" class="drop mt-3">
+          <svg class="ico w-5 h-5 mx-auto mb-1 opacity-70" viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <p class="text-[12px] leading-snug">Arrastra un archivo <b>.ttf .otf .woff .woff2</b><br>o <span class="underline decoration-dotted cursor-pointer">haz clic para elegir</span></p>
+          <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2,font/*" multiple class="hidden">
+        </div>
+        <p class="hint mt-1.5">Cargar el archivo <b>.ttf/.otf</b> habilita el explorador de glifos y la exportación <b>vectorial</b> a PDF/SVG.</p>
+
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div>
+            <label class="lbl">Grosor</label>
+            <select id="selWeight" class="inp">
+              <option value="300">Ligero</option>
+              <option value="400" selected>Normal</option>
+              <option value="500">Medio</option>
+              <option value="600">Semi negrita</option>
+              <option value="700">Negrita</option>
+              <option value="900">Extra negrita</option>
+            </select>
+          </div>
+          <div>
+            <label class="lbl">Estilo</label>
+            <select id="selItalic" class="inp">
+              <option value="normal">Normal</option>
+              <option value="italic">Cursiva</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- 3. TAMAÑO -->
+    <details class="acc" open>
+      <summary><span class="acc-n">3</span> Tamaño</summary>
+      <div class="acc-body">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="lbl">Medir por</label>
+            <select id="selSizeMode" class="inp">
+              <option value="cap">Altura de mayúscula</option>
+              <option value="ink">Alto total del texto</option>
+              <option value="em">Tamaño de fuente</option>
+            </select>
+          </div>
+          <div>
+            <label class="lbl">Unidad</label>
+            <select id="selUnit" class="inp">
+              <option value="mm" selected>Milímetros</option>
+              <option value="cm">Centímetros</option>
+              <option value="in">Pulgadas</option>
+              <option value="pt">Puntos</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <div class="flex items-center justify-between">
+            <label class="lbl mb-0">Tamaño</label>
+            <div class="flex items-center gap-1">
+              <input id="numSize" type="number" step="0.1" min="0.1" value="25" class="inp w-24 text-right py-1">
+              <span id="unitLbl" class="text-[11px] text-muted w-6">mm</span>
+            </div>
+          </div>
+          <input id="rangeSize" type="range" min="1" max="200" step="0.5" value="25" class="rng mt-2">
+        </div>
+
+        <div class="mt-3 grid grid-cols-2 gap-2">
+          <div>
+            <label class="lbl">Ancho máx. (0 = libre)</label>
+            <input id="numMaxW" type="number" min="0" step="1" value="0" class="inp">
+          </div>
+          <div>
+            <label class="lbl">Espaciado letras</label>
+            <input id="numTracking" type="number" step="0.005" value="0" class="inp">
+          </div>
+        </div>
+        <p class="hint mt-1">El ancho máximo reduce automáticamente los nombres largos para que quepan.</p>
+      </div>
+    </details>
+
+    <!-- 4. ESTILO -->
+    <details class="acc">
+      <summary><span class="acc-n">4</span> Color y contorno</summary>
+      <div class="acc-body">
+        <div class="flex items-center justify-between py-1.5">
+          <label class="flex items-center gap-2 text-[13px]"><input id="chkFill" type="checkbox" checked class="cbx"> Relleno</label>
+          <input id="inpFill" type="color" value="#111111" class="clr">
+        </div>
+        <div class="flex items-center justify-between py-1.5">
+          <label class="flex items-center gap-2 text-[13px]"><input id="chkStroke" type="checkbox" class="cbx"> Contorno</label>
+          <input id="inpStroke" type="color" value="#c0392b" class="clr">
+        </div>
+        <div>
+          <label class="lbl">Grosor del contorno (mm)</label>
+          <input id="numStrokeW" type="number" min="0" step="0.05" value="0.3" class="inp">
+        </div>
+
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          <button class="chip" data-preset-style="black">Negro sólido</button>
+          <button class="chip" data-preset-style="cut">Solo corte</button>
+          <button class="chip" data-preset-style="outline">Relleno + borde</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- 5. TERMINACIONES -->
+    <details class="acc">
+      <summary><span class="acc-n">5</span> Terminaciones y adornos</summary>
+      <div class="acc-body">
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="lbl">Prefijo</label><input id="inpPrefix" class="inp" placeholder="p. ej. ~"></div>
+          <div><label class="lbl">Sufijo</label><input id="inpSuffix" class="inp" placeholder="p. ej. ♥"></div>
+        </div>
+
+        <label class="lbl mt-3">Insertar símbolo (clic = sufijo · Alt+clic = prefijo)</label>
+        <div id="glyphPalette" class="palette"></div>
+
+        <label class="lbl mt-3">Alternativas OpenType (swash, ligaduras)</label>
+        <div id="featGrid" class="flex flex-wrap gap-1.5"></div>
+        <p class="hint mt-1.5">Muchas fuentes tipo <i>Joseph Sophia</i> guardan las colas con letra y corazón en
+          <b>swsh</b>, <b>salt</b> o <b>ss01…ss05</b>. Actívalas y prueba; el explorador de glifos te deja
+          insertar el carácter exacto.</p>
+      </div>
+    </details>
+
+    <!-- 6. HOJA -->
+    <details class="acc" open>
+      <summary><span class="acc-n">6</span> Hoja y disposición</summary>
+      <div class="acc-body">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="lbl">Papel</label>
+            <select id="selPaper" class="inp"></select>
+          </div>
+          <div>
+            <label class="lbl">Orientación</label>
+            <select id="selOrient" class="inp">
+              <option value="portrait">Vertical</option>
+              <option value="landscape">Horizontal</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="customPaper" class="grid grid-cols-2 gap-2 mt-2 hidden">
+          <div><label class="lbl">Ancho (mm)</label><input id="numPaperW" type="number" min="10" value="210" class="inp"></div>
+          <div><label class="lbl">Alto (mm)</label><input id="numPaperH" type="number" min="10" value="297" class="inp"></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mt-3">
+          <div><label class="lbl">Margen</label><input id="numMargin" type="number" min="0" step="1" value="10" class="inp"></div>
+          <div><label class="lbl">Sep. horiz.</label><input id="numGapX" type="number" min="0" step="1" value="8" class="inp"></div>
+          <div><label class="lbl">Sep. vert.</label><input id="numGapY" type="number" min="0" step="1" value="8" class="inp"></div>
+        </div>
+
+        <div class="mt-3">
+          <label class="lbl">Alineación de filas</label>
+          <select id="selAlign" class="inp">
+            <option value="left">Izquierda</option>
+            <option value="center" selected>Centrada</option>
+            <option value="right">Derecha</option>
+            <option value="justify">Justificada</option>
+          </select>
+        </div>
+
+        <div class="mt-3 space-y-2">
+          <label class="flex items-center gap-2 text-[13px]"><input id="chkGuides" type="checkbox" class="cbx"> Ver guías de recorte en pantalla</label>
+          <label class="flex items-center gap-2 text-[13px]"><input id="chkMirror" type="checkbox" class="cbx"> Espejo (sublimación / transfer)</label>
+          <label class="flex items-center gap-2 text-[13px]"><input id="chkPageNum" type="checkbox" class="cbx"> Numerar páginas al imprimir</label>
+        </div>
+      </div>
+    </details>
+
+    <!-- 7. PRESETS -->
+    <details class="acc">
+      <summary><span class="acc-n">7</span> Ajustes guardados</summary>
+      <div class="acc-body">
+        <div class="flex gap-2">
+          <input id="presetName" class="inp" placeholder="Nombre del ajuste">
+          <button id="btnPresetSave" class="btn-ghost shrink-0">Guardar</button>
+        </div>
+        <div id="presetList" class="mt-2 space-y-1"></div>
+        <button id="btnReset" class="chip mt-3">Restablecer todo</button>
+      </div>
+    </details>
+
+    <div class="p-4 text-[11px] text-muted leading-relaxed border-t border-line">
+      <b class="text-txt">Consejo de producción:</b> para plotter de corte usa
+      <i>Solo corte</i> + exporta <b>SVG</b>. Para sublimación activa <b>Espejo</b> y usa <b>Imprimir → Guardar como PDF</b>
+      con escala 100 %.
+    </div>
+  </aside>
+
+  <!-- ──────── LIENZO ──────── -->
+  <main class="flex-1 flex flex-col min-w-0 bg-bg">
+
+    <!-- Barra de herramientas del lienzo -->
+    <div id="canvasbar" class="no-print flex items-center gap-3 px-4 h-12 border-b border-line bg-panel/60 text-[12px]">
+      <div class="flex items-center gap-1">
+        <button id="btnZoomOut" class="btn-icon" title="Alejar">−</button>
+        <span id="zoomLbl" class="w-12 text-center tabular-nums text-muted">100 %</span>
+        <button id="btnZoomIn" class="btn-icon" title="Acercar">+</button>
+        <button id="btnZoomFit" class="btn-ghost !px-2 !py-1 text-[11px]">Ajustar</button>
+      </div>
+
+      <span class="w-px h-6 bg-line"></span>
+
+      <div class="flex items-center gap-4 text-muted">
+        <span>Piezas: <b id="statItems" class="text-txt tabular-nums">0</b></span>
+        <span>Páginas: <b id="statPages" class="text-txt tabular-nums">0</b></span>
+        <span class="hidden md:inline">Aprovechamiento: <b id="statFill" class="text-txt tabular-nums">0 %</b></span>
+      </div>
+
+      <div class="flex-1"></div>
+      <div id="warnBox" class="hidden items-center gap-1.5 text-[11px] text-amber-400">
+        <svg class="ico w-4 h-4" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span id="warnTxt"></span>
+      </div>
+      <div id="busy" class="hidden items-center gap-2 text-muted"><span class="spinner"></span> Calculando…</div>
+    </div>
+
+    <!-- Páginas -->
+    <div id="viewport" class="flex-1 overflow-auto scroll-thin p-8 grid place-items-start justify-center">
+      <div id="pages" class="origin-top"></div>
+      <div id="empty" class="hidden text-center text-muted py-24">
+        <p class="font-display text-3xl mb-2">Empieza escribiendo</p>
+        <p class="text-[13px]">Añade un nombre por línea en el panel izquierdo.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Contenedor oculto de medición. Debe estar renderizado (no display:none) y
+     a la MISMA escala que las hojas —1 unidad = 1 mm— para que getBBox()
+     devuelva exactamente la misma geometría que se imprimirá. -->
+<svg id="measure" class="no-print" viewBox="0 0 300 300" aria-hidden="true"></svg>
+
+<!-- ═══════════════ MODAL DE GLIFOS ═══════════════ -->
+<div id="glyphModal" class="no-print fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close></div>
+  <div class="relative mx-auto my-[4vh] w-[min(920px,92vw)] h-[92vh] flex flex-col rounded-2xl border border-line bg-panel shadow-2xl overflow-hidden">
+    <div class="flex items-center gap-3 px-5 h-14 border-b border-line shrink-0">
+      <h2 class="font-display text-lg">Explorador de glifos</h2>
+      <span id="glyphInfo" class="text-[11px] text-muted"></span>
+      <div class="flex-1"></div>
+      <input id="glyphSearch" class="inp !w-52 !py-1.5" placeholder="Buscar por nombre / código">
+      <button class="btn-icon" data-close>✕</button>
+    </div>
+    <div id="glyphFilters" class="flex flex-wrap gap-1.5 px-5 py-2.5 border-b border-line shrink-0">
+      <button class="chip on" data-gf="all">Todos</button>
+      <button class="chip" data-gf="pua">Adornos y terminaciones</button>
+      <button class="chip" data-gf="liga">Ligaduras</button>
+      <button class="chip" data-gf="letters">Letras</button>
+      <button class="chip" data-gf="other">Números y signos</button>
+    </div>
+
+    <div id="glyphBody" class="flex-1 overflow-y-auto scroll-thin p-4">
+      <div id="glyphEmpty" class="text-center text-muted py-20 text-[13px]">
+        Carga un archivo <b>.ttf</b> o <b>.otf</b> en el panel <i>Fuente</i> para explorar todos sus glifos,
+        incluidas las terminaciones con corazón y las colas decorativas.
+      </div>
+      <div id="glyphGrid" class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(84px,1fr))"></div>
+    </div>
+    <div class="px-5 py-2.5 border-t border-line text-[11px] text-muted shrink-0">
+      Clic = añadir al <b>sufijo</b> · Alt+clic = añadir al <b>prefijo</b> · Shift+clic = insertar en el texto
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="no-print fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] hidden"></div>
+
+<script src="js/app.js"></script>
+<script src="js/export.js"></script>
+</body>
+</html>
