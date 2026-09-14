@@ -50,34 +50,170 @@ NF.parseOpenType = async function (family) {
   if (!buf || NF.otFonts[family]) return NF.otFonts[family] || null;
   try {
     await loadScript(CDN.opentype);
-    NF.otFonts[family] = window.opentype.parse(buf);
+    const font = window.opentype.parse(buf);
+    font.__nfFamily = family;          // el modelador necesita saber de quién es
+    NF.otFonts[family] = font;
     NF.renderFontList();
     NF.refreshGlyphs();
-    return NF.otFonts[family];
+    NF.rerender();                     // la vista previa pasa a dibujar contornos
+    return font;
   } catch (e) {
     console.warn('opentype:', e.message);
     return null;
   }
 };
 
+/* ── Modelado tipográfico (shaping) ──
+   El navegador aplica por su cuenta las características OpenType que pide el
+   CSS: las de serie (ligaduras) y las que marca el usuario en el panel
+   «Variantes» (ss01, swsh, salt…). opentype.js NO lo hace: stringToGlyphs()
+   sólo resuelve «liga» y «rlig». Por eso el PDF vectorial salía con letras
+   distintas de las de la pantalla. Aquí se replica esa sustitución leyendo la
+   tabla GSUB de la propia fuente. */
+
+/* Las que el CSS activa por defecto y no se pueden desmarcar desde la UI */
+const BASE_TAGS = ['ccmp', 'rlig', 'liga', 'clig'];
+
+const subCache = new Map();     // familia|tags -> {singles, ligs}
+const scriptCache = new Map();  // familia -> script OpenType
+
+function otScript(font, family) {
+  if (scriptCache.has(family)) return scriptCache.get(family);
+  let s = 'latn';
+  try {
+    const names = font.substitution.getScriptNames() || [];
+    if (names.indexOf('latn') === -1) s = names[0] || 'DFLT';
+  } catch (e) { /* fuente sin GSUB */ }
+  scriptCache.set(family, s);
+  return s;
+}
+
+/* Reúne, para un juego de características, las sustituciones simples
+   (a → a.1) y las ligaduras (t + h → t_h) que declara la fuente. */
+function subsFor(font, family, tags) {
+  const key = family + '|' + tags.join(',');
+  let t = subCache.get(key);
+  if (t) return t;
+
+  const script = otScript(font, family);
+  const singles = new Map();
+  const ligs = [];
+  for (const tag of tags) {
+    let ss = [], ll = [];
+    try { ss = font.substitution.getSingle(tag, script) || []; } catch (e) { /* no está */ }
+    try { ll = font.substitution.getLigatures(tag, script) || []; } catch (e) { /* no está */ }
+    for (const r of ss) singles.set(r.sub, r.by);
+    for (const r of ll) if (r.sub && r.sub.length > 1) ligs.push(r);
+  }
+  ligs.sort((a, b) => b.sub.length - a.sub.length);   // gana la coincidencia más larga
+  t = { singles: singles, ligs: ligs };
+  subCache.set(key, t);
+  return t;
+}
+
+/* Cadena → lista de índices de glifo, ya sustituidos */
+function shape(font, family, text, features) {
+  const ids = [];
+  for (const ch of text) ids.push(font.charToGlyphIndex(ch));
+
+  const tags = BASE_TAGS.concat(features || []);
+  const subs = subsFor(font, family, tags);
+
+  // 1) ligaduras: las tablas de lookup se aplican antes que las alternativas
+  if (subs.ligs.length) {
+    const out = [];
+    for (let i = 0; i < ids.length; ) {
+      let hit = null;
+      for (const lg of subs.ligs) {
+        const n = lg.sub.length;
+        if (n > ids.length - i) continue;
+        let ok = true;
+        for (let j = 0; j < n; j++) if (ids[i + j] !== lg.sub[j]) { ok = false; break; }
+        if (ok) { hit = lg; break; }
+      }
+      if (hit) { out.push(hit.by); i += hit.sub.length; }
+      else     { out.push(ids[i]); i++; }
+    }
+    ids.length = 0;
+    Array.prototype.push.apply(ids, out);
+  }
+
+  // 2) alternativas estilísticas y demás sustituciones 1:1
+  if (subs.singles.size) {
+    for (let i = 0; i < ids.length; i++) {
+      const to = subs.singles.get(ids[i]);
+      if (to !== undefined) ids[i] = to;
+    }
+  }
+  return ids;
+}
+
+/* Interletraje: primero GPOS (el moderno), si no la tabla «kern» antigua */
+const kernCache = new Map();
+function kernTables(font, family) {
+  if (kernCache.has(family)) return kernCache.get(family);
+  let k = null;
+  try { k = font.position.getKerningTables(otScript(font, family)); } catch (e) { /* sin GPOS */ }
+  kernCache.set(family, k);
+  return k;
+}
+
+function kernBetween(font, family, a, b) {
+  const tables = kernTables(font, family);
+  try {
+    if (tables && tables.length) return font.position.getKerningValue(tables, a, b) || 0;
+    return font.getKerningValue(a, b) || 0;
+  } catch (e) { return 0; }
+}
+
 /* Convierte una cadena en datos de trazado («d») con los contornos reales de
-   la fuente. Es lo que necesita el plotter para cortar el vinil y lo que hace
-   que el PDF sea vectorial. */
-NF.textToPath = function (font, text, fontSize, trackingEm) {
+   la fuente, ya modelados. Es lo que necesita el plotter para cortar el vinil y
+   lo que hace que el PDF sea vectorial. */
+const pathCache = new Map();
+
+NF.textToPath = function (font, text, fontSize, trackingEm, features) {
+  const family = font.__nfFamily || 'sin-nombre';
+  const key = family + '|' + fontSize + '|' + (trackingEm || 0) + '|' +
+              (features || []).join(',') + '|' + text;
+  const hit = pathCache.get(key);
+  if (hit !== undefined) return hit;
+
+  const ids = shape(font, family, text, features);
   const scale = fontSize / font.unitsPerEm;
   const track = (trackingEm || 0) * fontSize;
   const path = new window.opentype.Path();
-  const glyphs = font.stringToGlyphs(text);
   let x = 0;
-  for (let i = 0; i < glyphs.length; i++) {
-    const g = glyphs[i];
+  for (let i = 0; i < ids.length; i++) {
+    const g = font.glyphs.get(ids[i]);
+    if (!g) continue;
     path.extend(g.getPath(x, 0, fontSize));
-    x += g.advanceWidth * scale + track;
-    if (i < glyphs.length - 1 && font.kerningPairs) {
-      x += (font.getKerningValue(g, glyphs[i + 1]) || 0) * scale;
-    }
+    x += (g.advanceWidth || 0) * scale + track;
+    if (i < ids.length - 1) x += kernBetween(font, family, ids[i], ids[i + 1]) * scale;
   }
-  return path.toPathData(3);
+  const d = path.toPathData(3);
+  // Los lotes repiten nombres: cachear evita rehacer el contorno en cada
+  // redibujo de la vista previa.
+  if (pathCache.size > 4000) pathCache.clear();
+  pathCache.set(key, d);
+  return d;
+};
+
+/* Se llama al cambiar de familia o al cargar un archivo de fuente. */
+NF.clearVectorCaches = function () {
+  pathCache.clear(); subCache.clear(); kernCache.clear(); scriptCache.clear();
+};
+
+/* La fuente sin cursiva ni negra propias: el navegador las finge inclinando y
+   engordando el contorno. En modo vectorial hay que hacer lo mismo o el PDF no
+   se parecerá a la vista previa. */
+NF.synthFor = function (font, weight, italic) {
+  const os2 = (font && font.tables && font.tables.os2) || {};
+  const faceItalic = !!(os2.fsSelection & 1);
+  const faceWeight = os2.usWeightClass || 400;
+  return {
+    slant:    (italic === 'italic' && !faceItalic) ? 0.25 : 0,
+    embolden: (parseInt(weight, 10) >= 600 && faceWeight < 600) ? 1 / 32 : 0,
+  };
 };
 
 /* ═══════════════ 2. SVG de página ═══════════════
@@ -186,7 +322,7 @@ async function exportPDF() {
       while (doc.getNumberOfPages() > 1) doc.deletePage(doc.getNumberOfPages());
       for (let i = 0; i < NF.pages.length; i++) {
         if (i) doc.addPage([paper.w, paper.h], paper.w > paper.h ? 'landscape' : 'portrait');
-        const png = rasterPage(NF.pages[i], paper, S, 300);
+        const png = await rasterPage(NF.pages[i], paper, S, 300);
         doc.addImage(png, 'PNG', 0, 0, paper.w, paper.h, undefined, 'FAST');
         if (S.pageNum) stampPageNumber(doc, paper, i + 1, NF.pages.length);
       }
@@ -208,18 +344,108 @@ function stampPageNumber(doc, paper, i, total) {
   doc.text(i + ' / ' + total, paper.w - 6, paper.h - 5, { align: 'right' });
 }
 
-/* Rasteriza una página con Canvas2D a los ppp indicados */
-function rasterPage(rows, paper, S, dpi) {
+/* ── Fuente embebida para el repliegue rasterizado ──
+   Una <img> con un SVG dentro está aislada: no ve las fuentes de la página, así
+   que hay que meterle la tipografía dentro como data URI. */
+
+const faceCache = Object.create(null);
+let gfCSS = null;
+
+function b64(buf) {
+  const bytes = new Uint8Array(buf);
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    out += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(out);
+}
+
+/* La hoja de estilo de Google Fonts que ya carga index.html, pedida otra vez
+   (viene de la caché del navegador y admite CORS). */
+function googleCSS() {
+  if (gfCSS) return gfCSS;
+  const link = Array.prototype.slice.call(document.querySelectorAll('link[rel="stylesheet"]'))
+    .map(l => l.href)
+    .filter(h => /fonts\.googleapis\.com\/css2/.test(h))[0];
+  gfCSS = link ? fetch(link).then(r => r.text()).catch(() => '') : Promise.resolve('');
+  return gfCSS;
+}
+
+async function inlineFace(family) {
+  if (family in faceCache) return faceCache[family];
+  let css = '';
+  try {
+    const buf = NF.fontBuffers[family];
+    if (buf) {
+      css = '@font-face{font-family:"' + family + '";' +
+            'src:url(data:font/ttf;base64,' + b64(buf) + ');}';
+    } else {
+      const sheet = await googleCSS();
+      const blocks = sheet.match(/@font-face\s*\{[^}]*\}/g) || [];
+      const mine = blocks.filter(b => {
+        const m = b.match(/font-family:\s*['"]([^'"]+)['"]/);
+        return m && m[1] === family;
+      }).slice(0, 8);
+      for (const block of mine) {
+        const url = (block.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/) || [])[1];
+        if (!url) continue;
+        const buf2 = await fetch(url).then(r => r.arrayBuffer());
+        const type = /\.woff2/.test(url) ? 'font/woff2' : 'font/woff';
+        css += block.replace(/src:[^;]+;/,
+          'src:url(data:' + type + ';base64,' + b64(buf2) + ') format("' +
+          (type === 'font/woff2' ? 'woff2' : 'woff') + '");');
+      }
+    }
+  } catch (e) {
+    console.warn('No se pudo embeber la fuente:', e.message);
+    css = '';
+  }
+  faceCache[family] = css;
+  return css;
+}
+
+/* Rasteriza una página a los ppp indicados dibujando EL MISMO SVG de la vista
+   previa. Así el repliegue conserva variantes OpenType, orden de pintado y
+   espejo, que la reconstrucción con Canvas2D perdía. */
+async function rasterPage(rows, paper, S, dpi) {
   const k = dpi / 25.4;                       // px por mm
+  const w = Math.round(paper.w * k), h = Math.round(paper.h * k);
   const cvs = document.createElement('canvas');
-  cvs.width  = Math.round(paper.w * k);
-  cvs.height = Math.round(paper.h * k);
+  cvs.width = w; cvs.height = h;
   const ctx = cvs.getContext('2d');
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, cvs.width, cvs.height);
+  ctx.fillRect(0, 0, w, h);
 
+  try {
+    // El mismo modo que dibuja la vista previa.
+    const vector = !!NF.otFonts[S.family];
+    const svg = NF.buildPageSVG(rows, paper, { mode: vector ? 'path' : 'text' }).svg;
+    if (!vector) {
+      // Con texto vivo hay que embeber la tipografía; con contornos no hace falta.
+      const face = await inlineFace(S.family);
+      if (!face) throw new Error('sin fuente embebida');
+      const st = document.createElementNS(SVGNS, 'style');
+      st.textContent = face;
+      svg.insertBefore(st, svg.firstChild);
+    }
+
+    const src = new XMLSerializer().serializeToString(svg);
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = () => rej(new Error('el SVG no se pudo rasterizar'));
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+    });
+    ctx.drawImage(img, 0, 0, w, h);
+    return cvs.toDataURL('image/png');
+  } catch (e) {
+    console.warn('Rasterizado del SVG no disponible, se redibuja:', e.message);
+  }
+
+  // Último recurso: redibujar con Canvas2D (pierde las variantes OpenType).
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
   ctx.save();
-  if (S.mirror) { ctx.translate(cvs.width, 0); ctx.scale(-1, 1); }
+  if (S.mirror) { ctx.translate(w, 0); ctx.scale(-1, 1); }
   ctx.translate(S.margin * k, S.margin * k);
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
@@ -229,8 +455,9 @@ function rasterPage(rows, paper, S, dpi) {
     ctx.font = S.italic + ' ' + S.weight + ' ' + (p.fontSize * k) + 'px "' + S.family + '", ' + NF.FALLBACK;
     if ('letterSpacing' in ctx) ctx.letterSpacing = (S.tracking * p.fontSize * k) + 'px';
     ctx.translate((p.x - p.bx) * k, (p.y - p.by) * k);
-    if (S.fillOn)   { ctx.fillStyle = S.fill;     ctx.fillText(p.text, 0, 0); }
+    // El SVG usa paint-order:stroke, o sea contorno debajo del relleno.
     if (S.strokeOn) { ctx.strokeStyle = S.stroke; ctx.lineWidth = S.strokeW * k; ctx.strokeText(p.text, 0, 0); }
+    if (S.fillOn)   { ctx.fillStyle = S.fill;     ctx.fillText(p.text, 0, 0); }
     ctx.restore();
   }
   ctx.restore();

@@ -335,7 +335,10 @@ function measure(text, opt) {
    ───────────────────────────────────────────────────────────────────────── */
 const REF = 1000;
 const boxCache = new Map();
-function clearCaches() { capCache.clear(); boxCache.clear(); }
+function clearCaches() {
+  capCache.clear(); boxCache.clear();
+  NF.clearVectorCaches && NF.clearVectorCaches();
+}
 
 /* Caja de tinta del texto a tamaño REF (cacheada: los lotes repiten nombres) */
 function refBox(text, opt) {
@@ -500,6 +503,9 @@ function buildPageSVG(rows, paper, opts) {
     layer.appendChild(guide(0, 0, paper.w - S.margin * 2, paper.h - S.margin * 2, '#ef4444', '2 1.5'));
   }
 
+  const synth = usePath ? NF.synthFor(NF.otFonts[S.family], S.weight, S.italic)
+                        : { slant: 0, embolden: 0 };
+
   for (const row of rows) for (const p of row.items) {
     if (opts.guides) layer.appendChild(guide(p.x, p.y, p.w, p.h, p.over ? '#ef4444' : '#3b82f6', '1 1'));
 
@@ -509,7 +515,10 @@ function buildPageSVG(rows, paper, opts) {
     let node;
     if (usePath) {
       node = document.createElementNS(SVGNS, 'path');
-      node.setAttribute('d', NF.textToPath(NF.otFonts[S.family], p.text, p.fontSize, S.tracking));
+      node.setAttribute('d', NF.textToPath(NF.otFonts[S.family], p.text, p.fontSize,
+                                           S.tracking, S.features));
+      // Cursiva fingida: el navegador inclina el contorno, aquí también.
+      if (synth.slant) node.setAttribute('transform', 'matrix(1,0,' + (-synth.slant) + ',1,0,0)');
     } else {
       node = document.createElementNS(SVGNS, 'text');
       node.setAttribute('x', 0); node.setAttribute('y', 0);
@@ -521,11 +530,18 @@ function buildPageSVG(rows, paper, opts) {
       });
     }
     node.setAttribute('fill', S.fillOn ? S.fill : 'none');
+
+    // Negrita fingida: se engorda el contorno con un trazo del color del relleno.
+    const bold = synth.embolden ? synth.embolden * p.fontSize : 0;
     if (S.strokeOn) {
       node.setAttribute('stroke', S.stroke);
-      node.setAttribute('stroke-width', S.strokeW);
+      node.setAttribute('stroke-width', S.strokeW + bold);
       node.setAttribute('stroke-linejoin', 'round');
       node.setAttribute('paint-order', 'stroke');
+    } else if (bold) {
+      node.setAttribute('stroke', S.fillOn ? S.fill : 'none');
+      node.setAttribute('stroke-width', bold);
+      node.setAttribute('stroke-linejoin', 'round');
     }
     node.setAttribute('data-name', p.text);
 
@@ -557,8 +573,10 @@ function render() {
     page.style.height = info.paper.h + 'mm';
 
     for (const r of rows) for (const p of r.items) inkArea += p.w * p.h;
+    // Mismo modo de dibujo que la exportación: si hay contornos disponibles se
+    // previsualizan contornos, de modo que el PDF no pueda salir distinto.
     page.appendChild(buildPageSVG(rows, info.paper,
-      { mode: 'text', guides: S.guides, screen: true }).svg);
+      { mode: NF.otFonts[S.family] ? 'path' : 'text', guides: S.guides, screen: true }).svg);
 
     if (S.pageNum) {
       const lab = document.createElement('div');

@@ -352,11 +352,17 @@ Cargadas **bajo demanda**, solo al pulsar exportar:
 
 ### Estrategia de exportación PDF
 
+La vista previa se dibuja con el mismo generador de SVG que la exportación y en
+el mismo modo: si hay archivo de fuente, ambas dibujan contornos; si no, ambas
+dibujan texto vivo. Por eso el PDF no puede salir distinto de la pantalla.
+
 1. **Vectorial** — si hay archivo de fuente disponible, el texto se convierte
-   a trazados y se vuelca con svg2pdf. Es el resultado preferente.
-2. **Rasterizado a 300 ppp** — si algo falla, se dibuja cada hoja en un
-   `<canvas>` con Canvas2D y se incrusta como imagen. Sirve para impresión y
-   sublimación, pero no para corte por contorno.
+   a trazados y se vuelca con svg2pdf. Es el resultado preferente. Las
+   sustituciones OpenType (ligaduras y alternativas `ssXX`, `swsh`, `salt`…) se
+   aplican leyendo la tabla GSUB de la fuente, igual que hace el navegador.
+2. **Rasterizado a 300 ppp** — si algo falla, se rasteriza a imagen el propio
+   SVG de la hoja, con la tipografía incrustada como data URI. Sirve para
+   impresión y sublimación, pero no para corte por contorno.
 3. **Imprimir** — siempre disponible y siempre vectorial; es la vía más fiable.
 
 ### Almacenamiento local
@@ -373,9 +379,11 @@ Cargadas **bajo demanda**, solo al pulsar exportar:
 - **`file://` no funciona del todo.** El navegador bloquea por CORS la lectura
   del archivo de fuente, así que sin servidor HTTP no hay explorador de glifos
   ni exportación vectorial. La vista previa y la impresión sí funcionan.
-- **Las alternativas OpenType no se aplican en el PDF rasterizado.** Canvas2D
-  no admite `font-feature-settings`. Si necesitas swashes en esa vía, insértalos
-  como glifos concretos desde el explorador.
+- **Las alternativas contextuales (`calt`) no llegan al PDF vectorial.** El
+  modelador reproduce sustituciones simples y ligaduras, que es lo que usan las
+  alternativas `ssXX`, `swsh` y `salt`; las reglas contextuales encadenadas no.
+  La vista previa dibuja lo mismo que se exportará, así que la diferencia se ve
+  antes de imprimir.
 - **La exportación vectorial exige `.ttf` o `.otf`.** Las fuentes de Google
   Fonts se sirven como `.woff2`, que no se puede descomprimir en el navegador;
   para exportarlas en vectorial hay que descargar el `.ttf` y cargarlo a mano.
